@@ -1,7 +1,9 @@
 from typing import Union, List, Optional
 import json
+from io import BytesIO, IOBase
 from functools import cached_property
 from contextlib import contextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import Field, computed_field, BaseModel
@@ -111,36 +113,48 @@ class Processor(BaseSettings):
             # otherwie return the file name and break the loop
             return blob.name
 
+    def download(self, blob_name: str, target: Optional[IOBase] = None) -> IOBase:
+        # get the blob object
+        blob = self.source.blob(blob_name)
 
-# define a function to process the next, single file
-@contextmanager
-def next_unprocessed_file(prefix: Optional[str] = None, **kwargs):
-    # init a processor object
-    processor = Processor(**kwargs)
+        # check if the blob exists
+        if not blob.exists():
+            raise FileNotFoundError(f'Blob {blob_name} does not exist in bucket {self.source.path}.')
+        
+        # if no target is given, create a new BytesIO object
+        if target is None:
+            target = BytesIO()
+        
+        # download the blob as bytes or text, depending on the target type
+        blob.download_to_file(target)
 
-    # get the next file to process
-    file_name = processor.next_file(prefix=prefix)
+        return target
 
-    # add the file name to the progress list
-    processor.progress_list + file_name
+    @contextmanager
+    def next_unprocessed_file(self, prefix: Optional[str] = None):
+        # get the next file to process
+        file_name = self.next_file(prefix=prefix)
 
-    # flag for errored files
-    did_error = False
+        # add the file name to the progress list
+        self.progress_list + file_name
 
-    # yield the file name to the caller
-    try:
-        yield file_name
-    except Exception:
-        # if an error occured, add the file name to the errored list
-        processor.errored_list + file_name
+        # flag for errored files
+        did_error = False
 
-        # set the flag to True
-        did_error = True
-    finally:
-        # remove the file name from the progress list
-        processor.progress_list - file_name
+        # yield the file name to the caller
+        try:
+            yield file_name
+        except Exception:
+            # if an error occured, add the file name to the errored list
+            self.errored_list + file_name
 
-        # add the file name to the finished list if no error occured
-        if not did_error:
-            processor.finished_list + file_name
+            # set the flag to True
+            did_error = True
+        finally:
+            # remove the file name from the progress list
+            self.progress_list - file_name
+
+            # add the file name to the finished list if no error occured
+            if not did_error:
+                self.finished_list + file_name
 

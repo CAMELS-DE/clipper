@@ -1,4 +1,5 @@
 from typing import Union, List, Optional
+from typing_extensions import Literal
 import json
 from io import BytesIO, IOBase
 from functools import cached_property
@@ -129,6 +130,20 @@ class Processor(BaseSettings):
         blob.download_to_file(target)
 
         return target
+    
+    def upload(self, blob_name: str, source: Union[IOBase, str], if_exists: Union[Literal['raise'], Literal['ignore']] = 'raise') -> None:
+        # get the blob object
+        blob = self.target.blob(blob_name)
+
+        # check if the blob already exists
+        if blob.exists() and if_exists == 'raise':
+            raise FileExistsError(f'Blob {blob_name} already exists in bucket {self.target.path}.')
+        
+        # otherwise upload the blob
+        if isinstance(source, str):
+            blob.upload_from_filename(source)
+        else:
+            blob.upload_from_file(source)
 
     @contextmanager
     def next_unprocessed_file(self, prefix: Optional[str] = None):

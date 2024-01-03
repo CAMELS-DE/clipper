@@ -1,5 +1,5 @@
 ARG python_version=3.10.13
-FROM ghcr.io/mmaelicke/zonal-variograms:v0.3.2
+FROM ghcr.io/mmaelicke/zonal-variograms:v0.3.3
 
 # Add the dependencies for this image
 RUN pip install python-dotenv==1.0.0

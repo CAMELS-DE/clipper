@@ -55,7 +55,7 @@ class LogHandler(BaseModel):
 
 class Processor(BaseSettings):
     project_id: str = 'camels-de'
-    gsa: Union[str, dict] = Field(repr=False, frozen=True, alias='google_service_account')
+    gkey: str = Field(repr=False, frozen=True, alias='google_application_credentials')
     source_bucket: str
     target_bucket: str
     progress_log: str = 'progress.log'
@@ -65,11 +65,8 @@ class Processor(BaseSettings):
     @computed_field
     @cached_property
     def client(self) -> Client:
-        # decode the google service account string
-        service_dict = json.loads(self.gsa) if isinstance(self.gsa, str) else self.gsa
-
         # build credentials from the service account
-        credentials = service_account.Credentials.from_service_account_info(info=service_dict)
+        credentials = service_account.Credentials.from_service_account_file(self.gkey)
 
         # initialize the client
         return Client(self. project_id, credentials=credentials)
@@ -146,9 +143,10 @@ class Processor(BaseSettings):
             blob.upload_from_file(source)
 
     @contextmanager
-    def next_unprocessed_file(self, prefix: Optional[str] = None):
+    def unprocessed_file(self, file_name: Optional[str] = None, prefix: Optional[str] = None):
         # get the next file to process
-        file_name = self.next_file(prefix=prefix)
+        if file_name is None:
+            file_name = self.next_file(prefix=prefix)
 
         # add the file name to the progress list
         self.progress_list + file_name
@@ -159,12 +157,14 @@ class Processor(BaseSettings):
         # yield the file name to the caller
         try:
             yield file_name
-        except Exception:
+        except Exception as e:
             # if an error occured, add the file name to the errored list
             self.errored_list + file_name
 
             # set the flag to True
             did_error = True
+
+            raise e
         finally:
             # remove the file name from the progress list
             self.progress_list - file_name

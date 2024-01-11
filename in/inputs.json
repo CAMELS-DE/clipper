@@ -1,0 +1,9 @@
+{
+    "hyras": {
+        "parameters": {
+            "catchment_id": "DE110020",
+            "catchments": "/src/merit_hydro_catchments.gpkg"
+        },
+        "data": {}
+    }
+}

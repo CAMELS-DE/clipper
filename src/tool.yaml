@@ -1,0 +1,21 @@
+tools:
+  hyras:
+    title: HYRAS clip and preprocessing tool for CAMELS-DE dataset
+    description: | 
+      This tool can be used to clip catchments from the HYRAS dataset of the DWD (german weather service).
+      The tool operates on a private copy of HYRAS stored in Google cloud storage and will upload the 
+      processed slices to the same GCE project. The tool is optimized for Google Cloud Run, but can also
+      be run locally.
+    parameters:
+      catchment_id:
+        type: string
+        description: | 
+          The catchment ID to be processed. It needs to be contained in the source referred to by
+          'catchments' in a column called 'id'. You might need to add that column.
+      catchments:
+        type: string
+        description: | 
+          The catchments to be processed. This can be the path to one of the files in the cloud drive or
+          a local path within the container. It defaults to a local copy of the MERIT hydro catchments for
+          Germany.
+        default: '/src/merit_hydro_catchments.gpkg'

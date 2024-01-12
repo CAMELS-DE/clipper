@@ -35,7 +35,10 @@ COPY ./src /src
 COPY ./merit_hydro_catchments.gpkg /src/merit_hydro_catchments.gpkg
 WORKDIR /src
 
-# download the hyras data
+# COPY local hyras cached data
+COPY ./hyras_cache /hyras_cache
+
+# download the hyras data not it cache
 RUN python download_all_hyras_to_cache.py
 
 # set the default command

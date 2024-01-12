@@ -30,7 +30,8 @@ catchments_path = kwargs['catchments']
 processor = DuckProcessor(
     target_bucket='camels_output_data',
     notebook_bucket='camels_notebooks',
-    catchments_path=catchments_path
+    catchments_path=catchments_path,
+    local_hyras_cache='/hyras_cache'
 )
 
 # handle tool name

@@ -163,4 +163,4 @@ cython_debug/
 .env
 camels-de-*.json
 .vscode
-hyras_code
+hyras_cache

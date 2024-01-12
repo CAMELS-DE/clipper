@@ -1,13 +1,20 @@
 ARG python_version=3.10.13
 FROM python:${python_version}
 
-# Add the dependencies for the tool specification
-RUN pip install json2args==0.6.1
+
+# create the structure
+RUN mkdir /src
+RUN mkdir /in
+RUN mkdir /out
+RUN mkdir /hyras_cache
 
 # Install GDAL which will be used by geopandas
 RUN pip install --upgrade pip
 RUN apt-get update && apt-get install -y gdal-bin libgdal-dev
 RUN pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
+
+# Add the dependencies for the tool specification
+RUN pip install json2args==0.6.1
 
 # Add the dependencies for this image
 RUN pip install python-dotenv==1.0.0
@@ -22,17 +29,14 @@ RUN pip install geocube==0.4.2
 RUN pip install papermill==2.5.0
 RUN pip install nbconvert==6.5.4
 
-
-# create the structure
-RUN mkdir -p /src/app
-RUN mkdir /in
-RUN mkdir /out
-
 # COPY the files
 COPY ./in /in
 COPY ./src /src
 COPY ./merit_hydro_catchments.gpkg /src/merit_hydro_catchments.gpkg
 WORKDIR /src
+
+# download the hyras data
+RUN python download_all_hyras_to_cache.py
 
 # set the default command
 CMD ["python", "main.py"]

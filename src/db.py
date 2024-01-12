@@ -1,4 +1,4 @@
-from typing import Any, Union, Optional
+from typing import Any, Union, List
 from typing_extensions import Literal
 from pathlib import Path
 from io import IOBase, BytesIO
@@ -7,7 +7,7 @@ from functools import cached_property
 from dotenv import load_dotenv
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings
-from google.cloud.storage import Client, Bucket
+from google.cloud.storage import Client, Bucket, Blob
 from google.oauth2 import service_account
 import geopandas as gpd
 import httpx
@@ -27,9 +27,11 @@ load_dotenv()
 class DuckProcessor(BaseSettings):
     project_id: str = 'camels-de'
     gkey: str = Field(default='', repr=False, frozen=True, alias='google_application_credentials')
-    target_bucket: str
-    notebook_bucket: str
-    catchments_path: str
+    target_bucket: str = 'camels_output_data'
+    source_bucket: str = 'hyras'
+    local_hyras_cache: str = '../hyras_cache'
+    notebook_bucket: str = 'camels_notebooks'
+    catchments_path: str = './merit_hydro_catchments'
     result_prefix: str = Field(init_var=False, default='')
     base_url: str = "https://opendata.dwd.de/climate_environment/CDC/grids_germany/daily/hyras_de"
 
@@ -54,6 +56,11 @@ class DuckProcessor(BaseSettings):
     @property
     def target(self) -> Bucket:
         return self.client.bucket(self.target_bucket)
+    
+    @computed_field
+    @property
+    def source(self) -> Bucket:
+        return self.client.bucket(self.source_bucket)
     
     @computed_field
     @property
@@ -101,26 +108,40 @@ class DuckProcessor(BaseSettings):
         else:
             blob.upload_from_file(source)
         
-
-    def download_hyras(self, variable: str, year: int, path: Optional[IOBase] = None) -> Union[IOBase, str]:
+    def download_hyras(self, variable: str, year: int) -> str:
         # build the filename 
-        filename = f"{variable}_hyras_{1 if variable in ('pr') else 5}_{year}_v5-0_de.nc"
-        # build the specific url
+        filename = f"{variable}_hyras_{1 if variable in ('pr') else 5}_{year}_v{3 if variable == 'rsds' else 5}-0_de.nc"
+        
+        # check if that file exists in the local cache
+        path = Path(self.local_hyras_cache) / filename
+        if path.exists():
+            return str(path)
+
+        # if not, download from DWD open data server
         url = f"{self.base_url}/{VAR_MAP[variable]}/{filename}"
 
         # download
         response = httpx.get(url)
-        if response.status_code != 200:
-            raise FileNotFoundError(f'File {filename} not found. (Tested: {url})')
 
-        # handle return value
-        if path is None:
-            buffer = BytesIO()
-            buffer.write(response.content)
-            buffer.seek(0)
-            return buffer
-        else:
-            path.write(response.content)
+        # if we successfully downloaded the file, hooray
+        if response.status_code == 200:
+            with open(path, 'wb') as f:
+                f.write(response.content)
+            
+            # return
+            return str(path)
+
+        # reach out the the GCE store
+        blob_name = "**/{variable}_hyras_*{year}*.nc"
+        files: List[Blob] = list(self.source.list_blobs(match_glob=blob_name))
+
+        # there has to be exactly one result
+        if len(files) != 1:
+            raise RuntimeError(f"The BLOB pattern {blob_name} did not yield exactly one result.")
+        
+        # download
+        files[0].download_to_filename(str(path))
+        return str(path)
 
     def exists(self, blob_name) -> bool:
         return self.target.blob(blob_name).exists()

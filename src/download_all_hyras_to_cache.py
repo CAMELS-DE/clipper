@@ -16,7 +16,7 @@ load_dotenv()
 
 def download_one(variable: str, start: int = 1951, end: int = 2024):
     processor = DuckProcessor(
-        local_hyras_cache='./hyras_cache'
+        local_hyras_cache='/hyras_cache'
     )
     
     # go for each year

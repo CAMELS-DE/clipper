@@ -32,7 +32,6 @@ RUN pip install nbconvert==6.5.4
 # COPY the files
 COPY ./in /in
 COPY ./src /src
-COPY ./merit_hydro_catchments.gpkg /src/merit_hydro_catchments.gpkg
 WORKDIR /src
 
 # COPY local hyras cached data

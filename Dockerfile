@@ -28,6 +28,7 @@ RUN pip install cftime==1.6.3
 RUN pip install geocube==0.4.2
 RUN pip install papermill==2.5.0
 RUN pip install nbconvert==6.5.4
+RUN pip install httpx==0.26.0
 
 # COPY the files
 COPY ./in /in

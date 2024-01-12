@@ -13,7 +13,7 @@ import geopandas as gpd
 import httpx
 
 VAR_MAP = {
-    'pr': 'preciptation',
+    'pr': 'precipitation',
     'hurs': 'humidity',
     'rsds': 'radiation_global',
     'tas': 'air_temperature_mean',
@@ -130,9 +130,11 @@ class DuckProcessor(BaseSettings):
             
             # return
             return str(path)
+        else:
+            print(f"Could not download {url}")
 
         # reach out the the GCE store
-        blob_name = "**/{variable}_hyras_*{year}*.nc"
+        blob_name = f"**/{variable}_hyras_*{year}*.nc"
         files: List[Blob] = list(self.source.list_blobs(match_glob=blob_name))
 
         # there has to be exactly one result
